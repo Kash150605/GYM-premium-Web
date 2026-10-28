@@ -20,10 +20,18 @@
 }
 
 @layer base {
-  * {
+  *,
+  *::before,
+  *::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+  }
+
+  img,
+  video {
+    max-width: 100%;
+    height: auto;
   }
 
   html {
@@ -237,6 +245,32 @@
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  .hero {
+    width: 100%;
+    max-width: 1200px;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+
+  .membership-cards {
+    display: grid;
+    grid-template-columns: repeat(
+      auto-fit,
+      minmax(min(100%, 250px), 1fr)
+    );
+    gap: 1.5rem;
+  }
+
+  @media (max-width: 600px) {
+    .hero {
+      padding-inline: 1rem;
+    }
+
+    .membership-cards {
+      gap: 1rem;
+    }
   }
 }
 
