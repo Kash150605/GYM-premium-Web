@@ -2,44 +2,60 @@
 
 import { motion, useInView } from "framer-motion";
 import { useRef, useState } from "react";
-import { Calculator, MessageCircle, ArrowRight } from "lucide-react";
+import { Calculator, MessageCircle, ArrowRight, AlertCircle } from "lucide-react";
 import { getWhatsAppUrl } from "@/lib/constants";
 
-interface BMIResult {
+export interface BMIResult {
   bmi: number;
   category: string;
   color: string;
   advice: string;
 }
 
-function calculateBMI(height: number, weight: number): BMIResult {
-  const heightM = height / 100;
-  const bmi = weight / (heightM * heightM);
+export function calculateBMI(
+  heightCm: number,
+  weightKg: number
+): number | null {
+  if (
+    !Number.isFinite(heightCm) ||
+    !Number.isFinite(weightKg) ||
+    heightCm <= 0 ||
+    weightKg <= 0
+  ) {
+    return null;
+  }
 
+  const heightM = heightCm / 100;
+  const bmi = weightKg / (heightM * heightM);
+
+  if (!Number.isFinite(bmi)) {
+    return null;
+  }
+
+  return Math.round(bmi * 10) / 10;
+}
+
+export function getBMICategory(bmi: number): Omit<BMIResult, "bmi"> {
   if (bmi < 18.5) {
     return {
-      bmi,
       category: "Underweight",
       color: "#2196F3",
       advice: "Our muscle building program can help you gain healthy weight with proper nutrition.",
     };
   } else if (bmi < 25) {
     return {
-      bmi,
       category: "Normal Weight",
       color: "#4CAF50",
       advice: "Great job! Maintain your fitness with our guided training programs.",
     };
   } else if (bmi < 30) {
     return {
-      bmi,
       category: "Overweight",
       color: "#FF9800",
       advice: "Our weight loss program combines HIIT and nutrition planning for effective results.",
     };
   } else {
     return {
-      bmi,
       category: "Obese",
       color: "#F44336",
       advice: "Our certified trainers specialize in safe, effective weight loss journeys. Let us help you.",
@@ -53,19 +69,53 @@ export default function BMICalculator() {
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
   const [result, setResult] = useState<BMIResult | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [heightError, setHeightError] = useState(false);
+  const [weightError, setWeightError] = useState(false);
 
   const handleCalculate = () => {
     const h = parseFloat(height);
     const w = parseFloat(weight);
-    if (h > 0 && w > 0) {
-      setResult(calculateBMI(h, w));
+
+    const isHInvalid = !Number.isFinite(h) || h <= 0;
+    const isWInvalid = !Number.isFinite(w) || w <= 0;
+
+    setHeightError(isHInvalid);
+    setWeightError(isWInvalid);
+
+    const bmi = calculateBMI(h, w);
+
+    if (bmi === null) {
+      if (isHInvalid && isWInvalid) {
+        setErrorMessage("Invalid input: Please enter valid positive values for height (cm) and weight (kg).");
+      } else if (isHInvalid) {
+        setErrorMessage("Invalid input: Height must be a positive number in centimetres.");
+      } else if (isWInvalid) {
+        setErrorMessage("Invalid input: Weight must be a positive number in kilograms.");
+      } else {
+        setErrorMessage("Invalid input: Please enter valid numbers.");
+      }
+      setResult(null);
+      return;
     }
+
+    setErrorMessage(null);
+    setHeightError(false);
+    setWeightError(false);
+    const categoryInfo = getBMICategory(bmi);
+    setResult({
+      bmi,
+      ...categoryInfo,
+    });
   };
 
   const handleReset = () => {
     setHeight("");
     setWeight("");
     setResult(null);
+    setErrorMessage(null);
+    setHeightError(false);
+    setWeightError(false);
   };
 
   return (
@@ -132,8 +182,16 @@ export default function BMICalculator() {
                       type="number"
                       placeholder="e.g., 175"
                       value={height}
-                      onChange={(e) => setHeight(e.target.value)}
-                      className="w-full px-4 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-[#651818]/50 focus:bg-white/[0.07] transition-all duration-300 text-sm"
+                      onChange={(e) => {
+                        setHeight(e.target.value);
+                        if (errorMessage) setErrorMessage(null);
+                        if (heightError) setHeightError(false);
+                      }}
+                      className={`w-full px-4 py-3.5 rounded-xl bg-white/5 border text-white placeholder-white/30 focus:outline-none transition-all duration-300 text-sm ${
+                        heightError
+                          ? "border-red-500/70 focus:border-red-500 focus:bg-red-500/[0.05]"
+                          : "border-white/10 focus:border-[#651818]/50 focus:bg-white/[0.07]"
+                      }`}
                     />
                   </div>
                   <div>
@@ -148,21 +206,44 @@ export default function BMICalculator() {
                       type="number"
                       placeholder="e.g., 70"
                       value={weight}
-                      onChange={(e) => setWeight(e.target.value)}
-                      className="w-full px-4 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-[#651818]/50 focus:bg-white/[0.07] transition-all duration-300 text-sm"
+                      onChange={(e) => {
+                        setWeight(e.target.value);
+                        if (errorMessage) setErrorMessage(null);
+                        if (weightError) setWeightError(false);
+                      }}
+                      className={`w-full px-4 py-3.5 rounded-xl bg-white/5 border text-white placeholder-white/30 focus:outline-none transition-all duration-300 text-sm ${
+                        weightError
+                          ? "border-red-500/70 focus:border-red-500 focus:bg-red-500/[0.05]"
+                          : "border-white/10 focus:border-[#651818]/50 focus:bg-white/[0.07]"
+                      }`}
                     />
                   </div>
                 </div>
 
+                {errorMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-center gap-2.5 mt-5"
+                    role="alert"
+                  >
+                    <AlertCircle size={18} className="shrink-0 text-red-400" />
+                    <span>{errorMessage}</span>
+                  </motion.div>
+                )}
+
                 <button
                   onClick={handleCalculate}
-                  disabled={!height || !weight}
-                  className="btn-primary w-full mt-8 justify-center disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:transform-none"
+                  className="btn-primary w-full mt-8 justify-center cursor-pointer"
                   id="bmi-calculate"
                 >
                   Calculate BMI
                   <ArrowRight size={18} />
                 </button>
+
+                <p className="text-xs text-[#888] text-center mt-6 leading-relaxed">
+                  Note: BMI is a screening measure, not a diagnosis or a complete measure of health.
+                </p>
               </>
             ) : (
               <motion.div
@@ -233,6 +314,10 @@ export default function BMICalculator() {
                     Calculate Again
                   </button>
                 </div>
+
+                <p className="text-xs text-[#888] text-center mt-6 leading-relaxed">
+                  Note: BMI is a screening measure, not a diagnosis or a complete measure of health.
+                </p>
               </motion.div>
             )}
           </div>
