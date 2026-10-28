@@ -19,6 +19,11 @@
   --font-body: "Inter", sans-serif;
 }
 
+:root {
+  --font-outfit: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-inter: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
 @layer base {
   *,
   *::before,

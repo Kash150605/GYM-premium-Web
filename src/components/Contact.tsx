@@ -13,6 +13,31 @@ import {
 } from "lucide-react";
 import { BUSINESS, getWhatsAppUrl } from "@/lib/constants";
 
+export async function submitContactForm(data: {
+  name: string;
+  phone: string;
+  email: string;
+  message: string;
+}): Promise<void> {
+  if (!data.name.trim() || !data.phone.trim() || !data.message.trim()) {
+    throw new Error("Please fill in all required fields.");
+  }
+
+  // Build WhatsApp message from form data
+  const msg = `Hello Prince Fitness,\n\nName: ${data.name}\nPhone: ${data.phone}\nEmail: ${data.email}\nMessage: ${data.message}`;
+  const url = `https://wa.me/${BUSINESS.whatsappNumber}?text=${encodeURIComponent(msg)}`;
+
+  // Small async delay to ensure guarded submission prevents duplicate clicks
+  await new Promise((resolve) => setTimeout(resolve, 800));
+
+  if (typeof window !== "undefined") {
+    const win = window.open(url, "_blank");
+    if (!win) {
+      window.location.href = url;
+    }
+  }
+}
+
 export default function Contact() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
@@ -22,18 +47,36 @@ export default function Contact() {
     email: "",
     message: "",
   });
+  const [submitting, setSubmitting] = useState(false);
+  const [status, setStatus] = useState("");
+  const [isError, setIsError] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // Build WhatsApp message from form data
-    const msg = `Hello Prince Fitness,\n\nName: ${formState.name}\nPhone: ${formState.phone}\nEmail: ${formState.email}\nMessage: ${formState.message}`;
-    const url = `https://wa.me/${BUSINESS.whatsappNumber}?text=${encodeURIComponent(msg)}`;
-    window.open(url, "_blank");
-    setIsSubmitted(true);
-    setTimeout(() => setIsSubmitted(false), 5000);
-    setFormState({ name: "", phone: "", email: "", message: "" });
-  };
+    if (submitting) return;
+
+    setSubmitting(true);
+    setStatus("");
+    setIsError(false);
+
+    try {
+      await submitContactForm(formState);
+      setStatus("Your request was submitted successfully.");
+      setIsSubmitted(true);
+      setTimeout(() => setIsSubmitted(false), 5000);
+      setFormState({ name: "", phone: "", email: "", message: "" });
+    } catch (err: unknown) {
+      setIsError(true);
+      setStatus(
+        err instanceof Error && err.message
+          ? err.message
+          : "Unable to submit your request. Please try again."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   const contactInfo = [
     {
@@ -277,12 +320,34 @@ export default function Contact() {
 
                   <button
                     type="submit"
-                    className="btn-primary w-full justify-center"
+                    disabled={submitting}
+                    className="btn-primary w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     id="contact-form-submit"
                   >
-                    <Send size={16} />
-                    Send via WhatsApp
+                    {submitting ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Submitting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send size={16} />
+                        <span>Send via WhatsApp</span>
+                      </>
+                    )}
                   </button>
+
+                  {status && (
+                    <p
+                      role="status"
+                      aria-live="polite"
+                      className={`text-sm text-center font-medium ${
+                        isError ? "text-red-400" : "text-green-400"
+                      }`}
+                    >
+                      {status}
+                    </p>
+                  )}
 
                   <p className="text-xs text-[#888] text-center">
                     Your message will be sent via WhatsApp for instant response.
